@@ -2,25 +2,28 @@ name: Gold AI Background Trader
 
 on:
   schedule:
-    - cron: '*/15 * * * *' # S'exécute toutes les 15 minutes
-  workflow_dispatch: # Permet de lancer le bot manuellement depuis l'onglet Actions
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
 
 jobs:
   run-bot:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v3
         with:
           node-version: '18'
 
-      - name: Run Analysis Script
+      - name: Install dependencies
+        run: npm install ws
+
+      - name: Run bot
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          DERIV_API_TOKEN: ${{ secrets.DERIV_API_TOKEN }}
         run: node index-bot.js
         
