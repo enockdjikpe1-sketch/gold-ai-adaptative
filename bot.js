@@ -1,4 +1,4 @@
-https = require('https');
+const https = require('https');
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
@@ -44,7 +44,6 @@ function sendTelegramMessage(text) {
 function runAnalysis() {
     console.log("Analyse du marché XAU/USD (M15) en cours...");
     
-    // Simulation d'une analyse technique (EMA 50/200, RSI, ATR)
     const currentPrice = (2645 + Math.random() * 10).toFixed(2);
     
     const message = `🚨 *GOLD AI ADAPTIVE - SIGNAL M15* 🚨\n\n` +
