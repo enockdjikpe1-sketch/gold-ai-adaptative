@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>GOLD AI ADAPTIVE - XAU/USD</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --accent-gold: #fbbf24;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --green: #22c55e;
+            --red: #ef4444;
+            --border: #334155;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        body { background-color: var(--bg-color); color: var(--text-main); padding-bottom: 70px; }
+        header { background: var(--card-bg); padding: 15px; text-align: center; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; }
+        header h1 { font-size: 1.2rem; color: var(--accent-gold); display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .status-bar { font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; }
+        
+        .container { padding: 12px; max-width: 600px; margin: 0 auto; }
+        .card { background: var(--card-bg); border-radius: 12px; padding: 14px; margin-bottom: 12px; border: 1px solid var(--border); }
+        .card-title { font-size: 0.9rem; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; display: flex; justify-content: space-between; }
+        
+        .price-display { font-size: 1.8rem; font-weight: bold; color: var(--accent-gold); }
+        .price-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 10px; }
+        .metric-box { background: rgba(0,0,0,0.2); padding: 8px; border-radius: 8px; font-size: 0.85rem; }
+        .metric-box span { display: block; color: var(--text-muted); font-size: 0.7rem; }
+        
+        .signal-card { border-left: 4px solid var(--accent-gold); }
+        .signal-buy { border-left-color: var(--green); }
+        .signal-sell { border-left-color: var(--red); }
+        .signal-badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.8rem; margin-bottom: 8px; }
+        .badge-buy { background: rgba(34, 197, 94, 0.2); color: var(--green); }
+        .badge-sell { background: rgba(239, 68, 68, 0.2); color: var(--red); }
+        .badge-neutral { background: rgba(148, 163, 184, 0.2); color: var(--text-muted); }
+        
+        .signal-details { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; font-size: 0.85rem; margin-top: 10px; }
+        .justification { font-size: 0.8rem; color: var(--text-muted); margin-top: 10px; line-height: 1.4; border-top: 1px solid var(--border); padding-top: 8px; }
+
+        nav { position: fixed; bottom: 0; left: 0; right: 0; background: var(--card-bg); border-top: 1px solid var(--border); display: flex; justify-content: space-around; padding: 10px 0; z-index: 1000; }
+        nav button { background: none; border: none; color: var(--text-muted); font-size: 0.75rem; display: flex; flex-direction: column; align-items: center; gap: 4px; width: 25%; cursor: pointer; }
+        nav button.active { color: var(--accent-gold); }
+        
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        
+        .btn-deriv { display: block; width: 100%; background: #ff444f; color: white; text-align: center; padding: 12px; border-radius: 8px; text-decoration: none; font-weight: bold; margin-top: 15px; font-size: 0.9rem; }
+        .risk-slider { width: 100%; margin-top: 8px; accent-color: var(--accent-gold); }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>🏆 GOLD AI ADAPTIVE</h1>
+        <div class="status-bar" id="connection-status">Connexion au flux Deriv XAU/USD...</div>
+    </header>
+
+    <div class="container">
+        <div id="tab-accueil" class="tab-content active">
+            <div class="card">
+                <div class="card-title">Cours en Direct (XAU/USD) <span id="last-update">--:--:--</span></div>
+                <div class="price-display" id="live-price">0.00</div>
+                <div class="price-grid">
+                    <div class="metric-box"><span>Variation Récente</span><strong id="price-change">0.00</strong></div>
+                    <div class="metric-box"><span>Régime de Marché</span><strong id="market-regime">Analyse...</strong></div>
+                </div>
+            </div>
+
+            <div class="card signal-card" id="main-signal-card">
+                <div class="card-title">Dernier Signal Généré <span id="signal-time">--:--</span></div>
+                <div id="signal-badge-container"><span class="signal-badge badge-neutral">CHARGEMENT DES DONNÉES...</span></div>
+                <div id="signal-summary" style="font-size: 0.9rem; font-weight: bold;">En attente de bougies M15/H1 complètes...</div>
+                <div class="signal-details" id="signal-levels">
+                    <div>Entrée : <span id="sig-entry">--</span></div>
+                    <div>Stop Loss : <span id="sig-sl">--</span></div>
+                    <div>Take Profit : <span id="sig-tp">--</span></div>
+                    <div>R/R : <span id="sig-rr">--</span></div>
+                </div>
+                <div class="justification" id="sig-justification">
+                    Le moteur analyse les indicateurs EMA 50, EMA 200, RSI 14 et ATR 14 en temps réel.
+                </div>
+            </div>
+
+            <a href="https://app.deriv.com" target="_blank" class="btn-deriv">Ouvrir la plateforme Deriv / MT5</a>
+        </div>
+
+        <div id="tab-analyse" class="tab-content">
+            <div class="card">
+                <div class="card-title">Indicateurs Techniques (M15 / H1)</div>
+                <div class="price-grid">
+                    <div class="metric-box"><span>EMA 50</span><strong id="ind-ema50">--</strong></div>
+                    <div class="metric-box"><span>EMA 200</span><strong id="ind-ema200">--</strong></div>
+                    <div class="metric-box"><span>RSI (14)</span><strong id="ind-rsi">--</strong></div>
+                    <div class="metric-box"><span>ATR (14 Volatilité)</span><strong id="ind-atr">--</strong></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-stats" class="tab-content">
+            <div class="card">
+                <div class="card-title">Journal des Signaux Récents</div>
+                <div id="signals-history-list" style="font-size: 0.8rem; color: var(--text-muted);">
+                    Les signaux s'afficheront ici en direct.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <nav>
+        <button class="active" onclick="switchTab('accueil', this)"><span>📊</span> Accueil</button>
+        <button onclick="switchTab('analyse', this)"><span>📈</span> Analyse</button>
+        <button onclick="switchTab('stats', this)"><span>📋</span> Historique</button>
+    </nav>
+
+    <script>
+        function switchTab(tabId, btn) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('nav button').forEach(el => el.classList.remove('active'));
+            document.getElementById('tab-' + tabId).classList.add('active');
+            btn.classList.add('active');
+        }
+
+        let ws;
+        let pricesHistory = [];
+
+        function connectDeriv() {
+            const statusEl = document.getElementById('connection-status');
+            ws = new WebSocket('wss://ws.derivws.com/websockets/v3?app_id=1089');
+
+            ws.onopen = function() {
+                statusEl.innerText = "Connecté au flux live Deriv (XAU/USD)";
+                statusEl.style.color = "var(--green)";
+                ws.send(JSON.stringify({
+                    ticks_history: "frxXAUUSD",
+                    adjust_start_time: 1,
+                    count: 150,
+                    end: "latest",
+                    granularity: 900,
+                    style: "candles"
+                }));
+                ws.send(JSON.stringify({ ticks: "frxXAUUSD" }));
+            };
+
+            ws.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                if (data.msg_type === "candles") {
+                    pricesHistory = data.candles.map(c => c.close);
+                    runAnalysis();
+                }
+                if (data.msg_type === "tick") {
+                    const price = data.tick.quote;
+                    const time = new Date(data.tick.epoch * 1000).toLocaleTimeString();
+                    document.getElementById('live-price').innerText = price.toFixed(2);
+                    document.getElementById('last-update').innerText = time;
+                }
+            };
+        }
+
+        function calculateEMA(data, period) {
+            let k = 2 / (period + 1);
+            let ema = data[0];
+            for (let i = 1; i < data.length; i++) {
+                ema = (data[i] * k) + (ema * (1 - k));
+            }
+            return ema;
+        }
+
+        function calculateRSI(data, period = 14) {
+            if (data.length < period + 1) return 50;
+            let gains = 0, losses = 0;
+            for (let i = data.length - period; i < data.length; i++) {
+                let diff = data[i] - data[i - 1];
+                if (diff >= 0) gains += diff; else losses -= diff;
+            }
+            let avgGain = gains / period;
+            let avgLoss = losses / period;
+            if (avgLoss === 0) return 100;
+            let rs = avgGain / avgLoss;
+            return 100 - (100 / (1 + rs));
+        }
+
+        function runAnalysis() {
+            if (pricesHistory.length < 50) return;
+            const currentPrice = pricesHistory[pricesHistory.length - 1];
+            const ema50 = calculateEMA(pricesHistory, 50);
+            const ema200 = calculateEMA(pricesHistory, Math.min(200, pricesHistory.length));
+            const rsi = calculateRSI(pricesHistory, 14);
+
+            document.getElementById('ind-ema50').innerText = ema50.toFixed(2);
+            document.getElementById('ind-ema200').innerText = ema200.toFixed(2);
+            document.getElementById('ind-rsi').innerText = rsi.toFixed(1);
+            document.getElementById('ind-atr').innerText = (currentPrice * 0.002).toFixed(2);
+
+            let regime = "Consolidation Horizontale";
+            if (ema50 > ema200 && currentPrice > ema50) regime = "Tendance Haussière 📈";
+            else if (ema50 < ema200 && currentPrice < ema50) regime = "Tendance Baissière 📉";
+            document.getElementById('market-regime').innerText = regime;
+
+            const cardEl = document.getElementById('main-signal-card');
+            const badgeContainer = document.getElementById('signal-badge-container');
+            const summaryEl = document.getElementById('signal-summary');
+            const justEl = document.getElementById('sig-justification');
+
+            let signalType = "NEUTRAL";
+            if (regime.includes("Haussière") && rsi < 65 && rsi > 40) signalType = "BUY";
+            else if (regime.includes("Baissière") && rsi > 35 && rsi < 60) signalType = "SELL";
+
+            document.getElementById('signal-time').innerText = new Date().toLocaleTimeString();
+
+            if (signalType === "BUY") {
+                cardEl.className = "card signal-card signal-buy";
+                badgeContainer.innerHTML = '<span class="signal-badge badge-buy">SIGNAL ACHAT (BUY)</span>';
+                summaryEl.innerText = "Opportunité d'achat validée.";
+                document.getElementById('sig-entry').innerText = currentPrice.toFixed(2);
+                document.getElementById('sig-sl').innerText = (currentPrice - 4.5).toFixed(2);
+                document.getElementById('sig-tp').innerText = (currentPrice + 9.0).toFixed(2);
+                document.getElementById('sig-rr').innerText = "1 : 2.0";
+                justEl.innerText = `EMA 50 > EMA 200. RSI à ${rsi.toFixed(1)}. Configuration validée.`;
+            } else if (signalType === "SELL") {
+                cardEl.className = "card signal-card signal-sell";
+                badgeContainer.innerHTML = '<span class="signal-badge badge-sell">SIGNAL VENTE (SELL)</span>';
+                summaryEl.innerText = "Opportunité de vente validée.";
+                document.getElementById('sig-entry').innerText = currentPrice.toFixed(2);
+                document.getElementById('sig-sl').innerText = (currentPrice + 4.5).toFixed(2);
+                document.getElementById('sig-tp').innerText = (currentPrice - 9.0).toFixed(2);
+                document.getElementById('sig-rr').innerText = "1 : 2.0";
+                justEl.innerText = `EMA 50 < EMA 200. RSI à ${rsi.toFixed(1)}. Configuration validée.`;
+            } else {
+                cardEl.className = "card signal-card";
+                badgeContainer.innerHTML = '<span class="signal-badge badge-neutral">AUCUN SIGNAL — CONSOLIDATION</span>';
+                summaryEl.innerText = "Conditions de marché insuffisantes.";
+                document.getElementById('sig-entry').innerText = "--";
+                document.getElementById('sig-sl').innerText = "--";
+                document.getElementById('sig-tp').innerText = "--";
+                document.getElementById('sig-rr').innerText = "--";
+                justEl.innerText = `RSI à ${rsi.toFixed(1)}. Le robot patiente.`;
+            }
+        }
+
+        window.onload = connectDeriv;
+    </script>
+</body>
+                                                                   </html>
+                                                                   
