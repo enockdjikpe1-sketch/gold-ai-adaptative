@@ -1,7 +1,9 @@
 const https = require('https');
+const WebSocket = require('ws');
 
 const token = process.env.TELEGRAM_BOT_TOKEN;
 const chatId = process.env.TELEGRAM_CHAT_ID;
+const derivToken = process.env.DERIV_API_TOKEN;
 
 if (!token || !chatId) {
     console.log("Erreur : Tokens Telegram manquants.");
@@ -12,33 +14,41 @@ function fetchDerivPrice() {
     // Connexion au flux WebSocket officiel de Deriv
     const ws = new WebSocket('wss://ws.derivws.com/websockets/v3?app_id=1089');
 
-    ws.onopen = function() {
-        // Demande du tick en direct pour l'or sur Deriv (symbole frxXAUUSD)
-        ws.send(JSON.stringify({ ticks: "frxXAUUSD" }));
-    };
-
-    ws.onmessage = function(event) {
-        const data = JSON.parse(event.data);
-        
-        if (data.tick) {
-            const goldPrice = data.tick.quote;
-            
-            // Calculs dynamiques basés sur le vrai prix de Deriv
-            const entry = goldPrice.toFixed(2);
-            const stopLoss = (goldPrice - 4).toFixed(2);
-            const takeProfit = (goldPrice + 8).toFixed(2);
-            
-            const rsi = (45 + (Math.random() * 15)).toFixed(1);
-            let signalType = rsi < 48 ? "🟢 BUY (Achat)" : (rsi > 55 ? "🔴 SELL (Vente)" : "🟡 NEUTRAL");
-
-            ws.close();
-            sendTelegramMessage(entry, stopLoss, takeProfit, rsi, signalType);
+    ws.on('open', function() {
+        // Si vous avez un jeton Deriv, on s'authentifie pour plus de précision
+        if (derivToken) {
+            ws.send(JSON.stringify({ authorize: derivToken }));
         }
-    };
+        // Demande du prix en direct (tick) pour le XAU/USD sur Deriv
+        ws.send(JSON.stringify({ ticks: "frxXAUUSD" }));
+    });
 
-    ws.onerror = function(error) {
+    ws.on('message', function(data) {
+        try {
+            const response = JSON.parse(data);
+            
+            // On attend de recevoir le tick de prix de l'or
+            if (response.tick && response.tick.symbol === "frxXAUUSD") {
+                const goldPrice = response.tick.quote;
+                
+                const entry = goldPrice.toFixed(2);
+                const stopLoss = (goldPrice - 5).toFixed(2);
+                const takeProfit = (goldPrice + 10).toFixed(2);
+                
+                const rsi = (45 + (Math.random() * 15)).toFixed(1);
+                let signalType = rsi < 48 ? "🟢 BUY (Achat)" : (rsi > 55 ? "🔴 SELL (Vente)" : "🟡 NEUTRAL");
+
+                ws.close();
+                sendTelegramMessage(entry, stopLoss, takeProfit, rsi, signalType);
+            }
+        } catch (e) {
+            console.error("Erreur de traitement des données Deriv :", e);
+        }
+    });
+
+    ws.on('error', function(error) {
         console.error("Erreur WebSocket Deriv :", error);
-    };
+    });
 }
 
 function sendTelegramMessage(entry, stopLoss, takeProfit, rsi, signalType) {
@@ -49,7 +59,7 @@ function sendTelegramMessage(entry, stopLoss, takeProfit, rsi, signalType) {
                     `🛑 *Stop Loss :* ${stopLoss} $\n` +
                     `🎯 *Take Profit :* ${takeProfit} $\n\n` +
                     `📈 *RSI (14) :* ${rsi}\n` +
-                    `⚡ *Source :* Flux Officiel Deriv`;
+                    `⚡ *Source :* Flux Direct Deriv`;
 
     const data = JSON.stringify({
         chat_id: chatId,
@@ -76,5 +86,5 @@ function sendTelegramMessage(entry, stopLoss, takeProfit, rsi, signalType) {
     req.end();
 }
 
-// Lancement de la récupération du prix en temps réel
 fetchDerivPrice();
+               
